@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
 import { useDocStore } from '@/stores/doc'
 import { collab } from '@/collab/collab'
+import { buildLeavePrompt, hasUnsynced } from '@/collab/leaveGuard'
 import { ROLE_LABEL } from '../../../shared/protocol'
 import UserAvatar from '@/components/UserAvatar.vue'
 
@@ -49,9 +50,35 @@ function toggleOffline() {
 }
 
 async function quit() {
+  const summary = collab.unsyncedBeforeLeave()
+  // 已全部同步：直接退出，不打断用户
+  if (!hasUnsynced(summary)) {
+    collab.leave()
+    return
+  }
+  const prompt = buildLeavePrompt(summary)!
+  const accent = prompt.severity === 'warning' ? '#e6a23c' : '#409eff'
   try {
-    await ElMessageBox.confirm('确定离开文档吗？', '退出', { type: 'warning' })
+    // 存在待确认编辑 / 待发送批注 / 重同步中：弹窗列出待同步数量，用户可取消或放弃
+    await ElMessageBox({
+      title: prompt.title,
+      type: prompt.severity,
+      confirmButtonText: prompt.confirmText,
+      cancelButtonText: prompt.cancelText,
+      showCancelButton: true,
+      distinguishCancelAndClose: true,
+      closeOnClickModal: false,
+      message: h('div', null, [
+        h('p', { style: 'margin: 0 0 8px; color: #606266' }, '以下内容尚未同步，离开后将被丢弃：'),
+        h(
+          'ul',
+          { style: `margin: 0; padding-left: 20px; color: ${accent}` },
+          prompt.reasons.map((r) => h('li', { style: 'line-height: 1.9' }, r)),
+        ),
+      ]),
+    })
   } catch {
+    // 取消 / 关闭：留在文档继续编辑
     return
   }
   collab.leave()

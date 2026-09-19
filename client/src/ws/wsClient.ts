@@ -125,6 +125,16 @@ export class WSClient {
     for (const m of this.outbox.splice(0)) this.ws!.send(JSON.stringify(m))
   }
 
+  /** 断线期间排队、重连补发的非易失消息条数（不含光标 / ping） */
+  get pendingCount() {
+    return this.outbox.length
+  }
+
+  /** 队列中待发送的批注消息条数（ann:add / ann:reply / ann:resolve / ann:delete） */
+  get pendingAnnotationCount() {
+    return this.outbox.filter((m) => (m as { type?: string }).type?.startsWith('ann:')).length
+  }
+
   clearOutbox() {
     this.outbox = []
   }
