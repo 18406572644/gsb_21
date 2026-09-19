@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
 import { useDocStore } from '@/stores/doc'
 import { collab } from '@/collab/collab'
+import { needsLeaveConfirm, unsyncedDetailLines } from '@/collab/leaveGuard'
 import { ROLE_LABEL } from '../../../shared/protocol'
 import UserAvatar from '@/components/UserAvatar.vue'
 
@@ -48,11 +49,34 @@ function toggleOffline() {
   }
 }
 
+/**
+ * 退出文档：已同步时直接退出；
+ * 存在待确认编辑 / 待发送批注 / 重同步中时弹窗展示待同步数量，
+ * 由用户选择「放弃修改并退出」或「取消」继续编辑。
+ */
 async function quit() {
-  try {
-    await ElMessageBox.confirm('确定离开文档吗？', '退出', { type: 'warning' })
-  } catch {
-    return
+  const summary = collab.getUnsyncedSummary()
+  if (needsLeaveConfirm(summary)) {
+    try {
+      await ElMessageBox.confirm(
+        h('div', [
+          h('p', { style: 'margin: 0 0 8px' }, '以下本地修改尚未同步到服务器，退出后将丢失：'),
+          h(
+            'ul',
+            { style: 'margin: 0; padding-left: 18px' },
+            unsyncedDetailLines(summary).map((line) => h('li', line)),
+          ),
+        ]),
+        '未同步的修改',
+        {
+          type: 'warning',
+          confirmButtonText: '放弃修改并退出',
+          cancelButtonText: '取消',
+        },
+      )
+    } catch {
+      return // 取消退出，继续留在文档编辑
+    }
   }
   collab.leave()
 }

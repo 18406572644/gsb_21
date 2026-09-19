@@ -22,6 +22,7 @@ import { WSClient } from '@/ws/wsClient'
 import { OTClient } from '@/ot/otClient'
 import { useSessionStore } from '@/stores/session'
 import { useDocStore } from '@/stores/doc'
+import type { UnsyncedSummary } from '@/collab/leaveGuard'
 
 type RemoteListener = (op: Op) => void
 
@@ -94,10 +95,23 @@ class Collab {
     this.ws.disconnect()
     this.ws.clearOutbox()
     this.joinedOnce = false
+    this.resyncing = false
     useSessionStore().$reset()
     useDocStore().$reset()
     this.ot.rollback(0)
     this.lastSeq = 0
+  }
+
+  /**
+   * 退出前检查：汇总本地未同步内容（待确认编辑 / 待发送批注 / 重同步中）。
+   * 三项全空表示已同步，可直接退出；否则退出将丢失未同步内容，需用户确认。
+   */
+  getUnsyncedSummary(): UnsyncedSummary {
+    return {
+      pendingEdits: this.ot.pendingCount,
+      pendingAnnotations: this.ws.outboxCount('ann:'),
+      resyncing: this.resyncing,
+    }
   }
 
   /** 模拟断网（演示断线重连 / 离线编辑） */

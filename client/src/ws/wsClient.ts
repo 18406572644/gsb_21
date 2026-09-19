@@ -129,6 +129,12 @@ export class WSClient {
     this.outbox = []
   }
 
+  /** 待补发消息数量：可按类型前缀过滤（如 'ann:' 只统计批注类消息），用于退出确认提示 */
+  outboxCount(prefix?: string): number {
+    if (!prefix) return this.outbox.length
+    return this.outbox.filter((m) => (m as { type?: string }).type?.startsWith(prefix)).length
+  }
+
   private startHeartbeat() {
     this.stopHeartbeat()
     this.pingTimer = setInterval(() => {

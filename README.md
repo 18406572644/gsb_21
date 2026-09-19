@@ -11,6 +11,7 @@
 - **三级权限**：`editor`（编辑+批注）/ `commenter`（仅批注）/ `viewer`（只读），服务端逐条校验
 - **在线状态**：在线用户列表、远程光标与选区实时展示
 - **异常链路**：断网自动重连（指数退避）、离线编辑暂存、消息序号空洞检测、ack 超时重同步、版本过旧时全量快照回滚
+- **退出确认**：离开文档前检测待确认编辑 / 待发送批注 / 重同步中状态，弹窗展示待同步数量，可取消退出或放弃本地修改；已同步时直接退出
 - **演示工具栏**：一键「模拟断线 / 重新连接」，直观展示离线编辑与重连同步
 
 ## 快速开始
@@ -52,8 +53,10 @@ npm run typecheck      # server tsc + client vue-tsc
 │       └── index.ts      #   HTTP + WS 入口、心跳、静态托管、文件持久化
 │   └── test/             #   ot.test.ts（性质 fuzz）/ e2e.test.ts（并发·权限·重连）
 │                         #   otClient.e2e.ts（真实客户端 OTClient × 真实服务端集成）
+│                         #   leaveGuard.test.ts（退出确认：正常/断线/重同步中/离线编辑）
 └── client/src/
     ├── collab/collab.ts  #   编排层：连接 × OT × store，异常链路处理
+    ├── collab/leaveGuard.ts # 退出确认：未同步内容汇总与判定（纯逻辑，可单测）
     ├── ot/otClient.ts    #   OT 客户端状态机（未确认队列 / 发送节流 / ack 超时）
     ├── ws/wsClient.ts    #   WS 封装（自动重连 / 发送队列 / 心跳）
     ├── stores/           #   Pinia：session（连接·用户）/ doc（文档·批注）
